@@ -101,11 +101,13 @@ public:
 			visible_layers = 0xFFFFFFFF;
 			fov = 75;
 			type = PERSPECTIVE;
+			use_oblique_frustum = false;
 			znear = 0.05;
 			zfar = 4000;
 			size = 1.0;
 			offset = Vector2();
 			vaspect = false;
+			oblique_offset = 0.0f;
 		}
 	};
 
