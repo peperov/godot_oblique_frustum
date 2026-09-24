@@ -179,6 +179,14 @@ private:
 	RID _setup_sdfgi_render_pass_uniform_set(RID p_albedo_texture, RID p_emission_texture, RID p_emission_aniso_texture, RID p_geom_facing_texture, const RendererRD::MaterialStorage::Samplers &p_samplers, uint32_t p_uniform_buffer_index);
 	RID _setup_render_pass_uniform_set(RenderListType p_render_list, const RenderDataRD *p_render_data, bool p_is_multiview, RID p_radiance_texture, const RendererRD::MaterialStorage::Samplers &p_samplers, uint32_t p_uniform_buffer_index, bool p_use_directional_shadow_atlas = false);
 
+	// Fork: a render-pass set pairs a per-frame MultiUmaBuffer instance buffer with one
+	// viewport's textures, and UniformSetCacheRD keeps every pairing until a dependency is
+	// freed - which those buffers never are. With several SubViewports the pairings pile up
+	// until the D3D12 descriptor heap runs out, so sets unused for a while are freed.
+	static constexpr uint64_t RENDER_PASS_UNIFORM_SET_EXPIRY_FRAMES = 120;
+	HashMap<RID, uint64_t> render_pass_uniform_set_last_used_frame;
+	void _free_expired_render_pass_uniform_sets();
+
 	struct BestFitNormal {
 		BestFitNormalShaderRD shader;
 		RID shader_version;

@@ -305,6 +305,24 @@ void RenderForwardClustered::update() {
 	RendererSceneRenderRD::update();
 	_update_global_pipeline_data_requirements_from_project();
 	_update_global_pipeline_data_requirements_from_light_storage();
+	_free_expired_render_pass_uniform_sets();
+}
+
+void RenderForwardClustered::_free_expired_render_pass_uniform_sets() {
+	const uint64_t frame = RSG::rasterizer->get_frame_number();
+	LocalVector<RID> expired;
+	for (const KeyValue<RID, uint64_t> &E : render_pass_uniform_set_last_used_frame) {
+		if (frame - E.value > RENDER_PASS_UNIFORM_SET_EXPIRY_FRAMES) {
+			expired.push_back(E.key);
+		}
+	}
+	for (const RID &uniform_set : expired) {
+		render_pass_uniform_set_last_used_frame.erase(uniform_set);
+		// A set whose dependency was freed is already gone; freeing a live one also drops it from UniformSetCacheRD.
+		if (RD::get_singleton()->uniform_set_is_valid(uniform_set)) {
+			RD::get_singleton()->free_rid(uniform_set);
+		}
+	}
 }
 
 /// RENDERING ///
@@ -3874,7 +3892,9 @@ RID RenderForwardClustered::_setup_render_pass_uniform_set(RenderListType p_rend
 	}
 #endif // MODULE_TEXTURE_STREAMING_ENABLED
 
-	return UniformSetCacheRD::get_singleton()->get_cache_vec(scene_shader.get_default_shader_rd(is_multiview), RENDER_PASS_UNIFORM_SET, uniforms);
+	RID uniform_set = UniformSetCacheRD::get_singleton()->get_cache_vec(scene_shader.get_default_shader_rd(is_multiview), RENDER_PASS_UNIFORM_SET, uniforms);
+	render_pass_uniform_set_last_used_frame[uniform_set] = RSG::rasterizer->get_frame_number();
+	return uniform_set;
 }
 
 RID RenderForwardClustered::_setup_sdfgi_render_pass_uniform_set(RID p_albedo_texture, RID p_emission_texture, RID p_emission_aniso_texture, RID p_geom_facing_texture, const RendererRD::MaterialStorage::Samplers &p_samplers, uint32_t p_uniform_buffer_index) {
